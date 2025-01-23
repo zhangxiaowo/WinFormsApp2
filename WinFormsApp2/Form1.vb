@@ -1,10 +1,6 @@
-﻿Imports OfficeOpenXml
-Imports System.IO
-Imports System.Drawing
+﻿Imports System.IO
 Imports System.Text.RegularExpressions
-Imports System.Threading.Tasks
-Imports System.Windows.Forms
-Imports OfficeOpenXml.Export.HtmlExport
+Imports OfficeOpenXml
 Imports OfficeOpenXml.Style
 
 Public Class Form1
@@ -24,37 +20,23 @@ Public Class Form1
     End Sub
 
     ' 按钮点击事件
-    Private Async Sub btnCompare_Click(sender As Object, e As EventArgs) Handles btnCompare.Click
-        Dim wsSheet As String = "N601"
+    Public Sub MainMethod(file1 As String, file2 As String)
 
-        ' 打开文件对话框选择 Excel 文件
-        If openFileDialog1.ShowDialog() = DialogResult.OK Then
-            filePath = openFileDialog1.FileName
-        Else
-            MessageBox.Show("未选择文件！")
-            Return
-        End If
-
-        ' 禁用按钮以防止重复点击
-        btnCompare.Enabled = False
-
-        ' 异步处理以避免界面冻结
+        '' 异步处理以避免界面冻结
         Try
-            Await Task.Run(Sub()
-                               Using package As New ExcelPackage(New FileInfo(filePath))
-                                   ' 依次处理不同的列
-                                   ProcessExcelFile(package, wsSheet, "C")
-                                   ProcessExcelFile(package, wsSheet, "E")
-                                   ProcessExcelFile(package, wsSheet, "F")
-                                   ProcessExcelFile(package, wsSheet, "K")
-                                   ProcessExcelFile(package, wsSheet, "V")
-                                   ProcessExcelFile(package, wsSheet, "AD")
+            Using package1 As New ExcelPackage(New FileInfo(file1)), package2 As New ExcelPackage(New FileInfo(file2))
+                Dim worksheetN601 As ExcelWorksheet = package1.Workbook.Worksheets("N601")
+                ' 获取第一个文件工作表
+                Dim wsTarget As ExcelWorksheet = package2.Workbook.Worksheets("科目汇总表查询.xlsx") ' 获取第二个文件工作表
 
-                                   ' 统一保存文件
-                                   SaveProcessedFile(package, filePath)
-                               End Using
-                           End Sub)
-            MessageBox.Show("处理完成！文件已保存。")
+                ' 调用 ProcessExcelFile 方法处理第一个文件
+                ProcessExcelFile(worksheetN601, wsTarget, "C") ' 假设要处理第一个工作表并指定目标列为"A"
+                SaveProcessedFile(package1, file1)
+                ' 调用 ProcessExcelFile 方法处理第二个文件
+            End Using
+
+
+
         Catch ex As Exception
             MessageBox.Show("发生错误: " & ex.Message)
         Finally
@@ -64,11 +46,7 @@ Public Class Form1
     End Sub
 
     ' 处理Excel文件的公共方法
-    Public Sub ProcessExcelFile(package As ExcelPackage, wsSheet As String, targetColumn As String)
-        ' 获取源和目标工作表
-        Dim wsSource As ExcelWorksheet = GetWorksheet(package, wsSheet) ' 根据实际情况替换工作表名称
-        Dim wsTarget As ExcelWorksheet = GetWorksheet(package, "Sheet1") ' 根据实际情况替换工作表名称
-
+    Public Sub ProcessExcelFile(wsSource As ExcelWorksheet, wsTarget As ExcelWorksheet, targetColumn As String)
         ' 检查工作表是否存在
         If wsSource Is Nothing OrElse wsTarget Is Nothing Then
             Throw New Exception("源工作表或目标工作表不存在！")
@@ -288,7 +266,6 @@ Public Class Form1
                 If Not Long.TryParse(wsTarget.Cells(i, columnB).Value?.ToString(), targetBValue) Then
                     targetBValue = 0L
                     ' 记录无效的 B 列数值
-                    WriteLog($"无效的B列数值: 行 {i}, 值 {wsTarget.Cells(i, columnB).Value}")
                 End If
 
                 If targetBValue = checkValue Then
@@ -299,19 +276,16 @@ Public Class Form1
                     ' 安全转换 E 列数值
                     If Not Decimal.TryParse(wsTarget.Cells(i, columnE).Value?.ToString(), eVal) Then
                         eVal = 0D
-                        WriteLog($"无效的E列数值: 行 {i}, 值 {wsTarget.Cells(i, columnE).Value}")
                     End If
 
                     ' 安全转换 F 列数值
                     If Not Decimal.TryParse(wsTarget.Cells(i, columnF).Value?.ToString(), fVal) Then
                         fVal = 0D
-                        WriteLog($"无效的F列数值: 行 {i}, 值 {wsTarget.Cells(i, columnF).Value}")
                     End If
 
                     ' 安全转换 I 列数值
                     If Not Decimal.TryParse(wsTarget.Cells(i, columnI).Value?.ToString(), iVal) Then
                         iVal = 0D
-                        WriteLog($"无效的I列数值: 行 {i}, 值 {wsTarget.Cells(i, columnI).Value}")
                     End If
 
                     ' 检查异常数据，包括负值
@@ -324,7 +298,6 @@ Public Class Form1
                     Try
                         calculatedValue = eVal + fVal - iVal
                     Catch ex As OverflowException
-                        WriteLog($"计算溢出: E={eVal}, F={fVal}, I={iVal} (行 {i})")
                         Throw New Exception($"计算溢出: E={eVal}, F={fVal}, I={iVal} (行 {i})")
                     End Try
 
@@ -413,15 +386,24 @@ Public Class Form1
 
     ' 提供保存文件对话框并保存处理后的文件
     Public Sub SaveProcessedFile(package As ExcelPackage, originalFilePath As String)
+        ' 初始化 SaveFileDialog
         Dim saveFileDialog1 As New SaveFileDialog()
         saveFileDialog1.Filter = "Excel 文件|*.xlsx"
         saveFileDialog1.Title = "保存处理结果"
         saveFileDialog1.FileName = Path.GetFileNameWithoutExtension(originalFilePath) & "_处理结果.xlsx"
 
-        If saveFileDialog1.ShowDialog() = DialogResult.OK Then
-            package.SaveAs(New FileInfo(saveFileDialog1.FileName))
+        ' 弹出对话框并等待用户操作
+        Dim dialogResult As DialogResult = saveFileDialog1.ShowDialog()
+
+        If dialogResult = DialogResult.OK Then
+            ' 保存文件到用户选择的路径
+            Dim savePath As String = saveFileDialog1.FileName
+            package.SaveAs(New FileInfo(savePath)) ' 保存文件
+            MessageBox.Show("文件已保存: " & savePath, "保存成功", MessageBoxButtons.OK, MessageBoxIcon.Information)
         Else
-            Throw New Exception("未保存文件。")
+            ' 如果用户取消了保存操作
+            MessageBox.Show("文件保存被取消。", "取消", MessageBoxButtons.OK, MessageBoxIcon.Information)
         End If
     End Sub
+
 End Class

@@ -4,31 +4,137 @@
     Private components As System.ComponentModel.IContainer
     Private WithEvents btnCompare As Button
     Private openFileDialog1 As OpenFileDialog
+    Private openFileDialog2 As OpenFileDialog
+    Private txtFile1 As TextBox
+    Private txtFile2 As TextBox
+    Private btnBrowse1 As Button
+    Private btnBrowse2 As Button
 
     ' 窗体初始化代码
     Private Sub InitializeComponent()
-        Me.btnCompare = New Button()
-        Me.openFileDialog1 = New OpenFileDialog()
-        Me.SuspendLayout()
-
-        ' btnCompare 按钮的设置
-        Me.btnCompare.Location = New Point(280, 120)  ' 设置按钮位置
-        Me.btnCompare.Name = "btnCompare"
-        Me.btnCompare.Size = New Size(200, 60)  ' 设置按钮大小
-        Me.btnCompare.TabIndex = 0
-        Me.btnCompare.Text = "开始比对"
-        Me.btnCompare.UseVisualStyleBackColor = True
-
-        ' openFileDialog1
-        Me.openFileDialog1.Filter = "Excel 文件 (*.xlsx)|*.xlsx"
-
-        ' 将按钮添加到窗体
-        Me.Controls.Add(Me.btnCompare)
-
-        ' 窗体的基本设置
-        Me.ClientSize = New Size(500, 500)  ' 设置窗体大小
-        Me.Name = "Form1"
-        Me.Text = "Excel 比对"
-        Me.ResumeLayout(False)
+        btnCompare = New Button()
+        openFileDialog1 = New OpenFileDialog()
+        openFileDialog2 = New OpenFileDialog()
+        txtFile1 = New TextBox()
+        txtFile2 = New TextBox()
+        btnBrowse1 = New Button()
+        btnBrowse2 = New Button()
+        Label1 = New Label()
+        Label2 = New Label()
+        SuspendLayout()
+        ' 
+        ' btnCompare
+        ' 
+        btnCompare.Location = New Point(292, 360)
+        btnCompare.Name = "btnCompare"
+        btnCompare.Size = New Size(200, 60)
+        btnCompare.TabIndex = 0
+        btnCompare.Text = "开始校验"
+        btnCompare.UseVisualStyleBackColor = True
+        AddHandler btnCompare.Click, AddressOf btnCompare_Click ' 确保事件绑定
+        ' 
+        ' txtFile1
+        ' 
+        txtFile1.BackColor = SystemColors.ButtonHighlight
+        txtFile1.Location = New Point(154, 100)
+        txtFile1.Name = "txtFile1"
+        txtFile1.ReadOnly = True
+        txtFile1.Size = New Size(500, 34)
+        txtFile1.TabIndex = 1
+        ' 
+        ' txtFile2
+        ' 
+        txtFile2.BackColor = SystemColors.ControlLightLight
+        txtFile2.Location = New Point(154, 153)
+        txtFile2.Name = "txtFile2"
+        txtFile2.ReadOnly = True
+        txtFile2.Size = New Size(500, 34)
+        txtFile2.TabIndex = 2
+        ' 
+        ' btnBrowse1
+        ' 
+        btnBrowse1.Location = New Point(675, 100)
+        btnBrowse1.Name = "btnBrowse1"
+        btnBrowse1.Size = New Size(91, 34)
+        btnBrowse1.TabIndex = 3
+        btnBrowse1.Text = "浏览"
+        btnBrowse1.UseVisualStyleBackColor = True
+        AddHandler btnBrowse1.Click, AddressOf btnBrowse1_Click ' 确保事件绑定
+        ' 
+        ' btnBrowse2
+        ' 
+        btnBrowse2.Location = New Point(675, 153)
+        btnBrowse2.Name = "btnBrowse2"
+        btnBrowse2.Size = New Size(91, 34)
+        btnBrowse2.TabIndex = 4
+        btnBrowse2.Text = "浏览"
+        btnBrowse2.UseVisualStyleBackColor = True
+        AddHandler btnBrowse2.Click, AddressOf btnBrowse2_Click ' 确保事件绑定
+        ' 
+        ' Label1
+        ' 
+        Label1.AutoSize = True
+        Label1.Location = New Point(36, 100)
+        Label1.Name = "Label1"
+        Label1.Size = New Size(96, 28)
+        Label1.TabIndex = 5
+        Label1.Text = "人资表："
+        ' 
+        ' Label2
+        ' 
+        Label2.AutoSize = True
+        Label2.Location = New Point(36, 153)
+        Label2.Name = "Label2"
+        Label2.Size = New Size(96, 28)
+        Label2.TabIndex = 6
+        Label2.Text = "科目表："
+        ' 
+        ' Form1
+        ' 
+        ClientSize = New Size(800, 700)
+        Controls.Add(Label2)
+        Controls.Add(Label1)
+        Controls.Add(btnCompare)
+        Controls.Add(txtFile1)
+        Controls.Add(txtFile2)
+        Controls.Add(btnBrowse1)
+        Controls.Add(btnBrowse2)
+        Name = "Form1"
+        Text = "Excel 比对"
+        ResumeLayout(False)
+        PerformLayout()
     End Sub
+
+    ' 按钮点击事件：选择第一个文件
+    Private Sub btnBrowse1_Click(sender As Object, e As EventArgs)
+        If openFileDialog1.ShowDialog() = DialogResult.OK Then
+            txtFile1.Text = openFileDialog1.FileName
+        End If
+    End Sub
+
+    ' 按钮点击事件：选择第二个文件
+    Private Sub btnBrowse2_Click(sender As Object, e As EventArgs)
+        If openFileDialog2.ShowDialog() = DialogResult.OK Then
+            txtFile2.Text = openFileDialog2.FileName
+        End If
+    End Sub
+
+    ' 按钮点击事件：执行比较操作
+    Private Sub btnCompare_Click(sender As Object, e As EventArgs)
+        Dim file1 As String = txtFile1.Text
+        Dim file2 As String = txtFile2.Text
+
+        ' 检查用户是否选择了文件
+        If String.IsNullOrEmpty(file1) Or String.IsNullOrEmpty(file2) Then
+            MessageBox.Show("请确保选择两个文件进行比对！", "警告", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            Return
+        End If
+        btnCompare.Enabled = False
+        MainMethod(file1, file2)
+        ' 在此进行文件比对操作
+        'MessageBox.Show("正在比对文件：" & vbCrLf & file1 & vbCrLf & file2)
+    End Sub
+
+    Friend WithEvents Label1 As Label
+    Friend WithEvents Label2 As Label
 End Class
