@@ -1,4 +1,5 @@
-﻿Imports System.IO
+﻿Imports System.Data.Common
+Imports System.IO
 Imports System.Text.RegularExpressions
 Imports OfficeOpenXml
 Imports OfficeOpenXml.Style
@@ -30,7 +31,12 @@ Public Class Form1
                 Dim wsTarget As ExcelWorksheet = package2.Workbook.Worksheets("科目汇总表查询.xlsx") ' 获取第二个文件工作表
 
                 ' 调用 ProcessExcelFile 方法处理第一个文件
-                ProcessExcelFile(worksheetN601, wsTarget, "C") ' 假设要处理第一个工作表并指定目标列为"A"
+                ProcessExcelFile(worksheetN601, wsTarget, "C") ' 假设要处理第一个工作表并指定目标列为"A
+                ProcessExcelFile(worksheetN601, wsTarget, "E") ' 
+                ProcessExcelFile(worksheetN601, wsTarget, "F") '
+                ProcessExcelFile(worksheetN601, wsTarget, "K") '
+                ProcessExcelFile(worksheetN601, wsTarget, "V") '
+                ProcessExcelFile(worksheetN601, wsTarget, "AD") '
                 SaveProcessedFile(package1, file1)
                 ' 调用 ProcessExcelFile 方法处理第二个文件
             End Using
@@ -75,7 +81,13 @@ Public Class Form1
             ' 获取目标列名称（假设为H或M，根据实际情况调整）
             ' 如果目标列为空，则跳过当前单元格
             Dim columnIndex As Integer = ColumnLetterToNumber(targetColumn) ' 返回列号
-            If String.IsNullOrEmpty(targetColumn) OrElse String.IsNullOrWhiteSpace(wsSource.Cells(currentCell.Start.Row, columnIndex).Text) Then
+            Dim cell As ExcelRange = wsSource.Cells(currentCell.Start.Row, columnIndex)
+            ' 清除当前单元格的注释
+            If cell.Comment IsNot Nothing Then
+                cell.Clear() ' 清除注释
+            End If
+
+            If ShouldSkipCell(currentCell, "A", wsSource) Then
                 Continue For
             End If
 
@@ -102,15 +114,16 @@ Public Class Form1
             If wsSource.Name = "N601" Then
                 totalCalculatedValue = MergeAndCenterCells(wsSource, currentCell.Start.Row, targetColumn, totalCalculatedValue)
             End If
-
             ' 根据累加的结果设置颜色
             Dim valueSource As Double = 0
             If Double.TryParse(wsSource.Cells(currentCell.Start.Row, columnIndex).Text, valueSource) Then
                 If matchFound Then
-                    If valueSource = totalCalculatedValue Then
+                    If Math.Abs(Convert.ToDecimal(valueSource) - Convert.ToDecimal(totalCalculatedValue)) < 3 Then
                         SetCellColor(wsSource, currentCell.Start.Row, columnIndex, Color.FromArgb(0, 190, 140)) ' 一致标绿
                     Else
                         SetCellColor(wsSource, currentCell.Start.Row, columnIndex, Color.Red) ' 不一致标红
+                        SetCellColor(wsSource, currentCell.Start.Row, columnIndex, Color.Red) ' 不一致标红
+                        wsSource.Cells(currentCell.Start.Row, columnIndex).AddComment("科目表中的数据为 " & totalCalculatedValue)
                     End If
                 Else
                     ' 未匹配到，标黄
@@ -344,8 +357,8 @@ Public Class Form1
             Using range As ExcelRange = wsSource.Cells(sourceRow, columnV, sourceRow, columnW)
                 range.Merge = True
                 range.Value = valueSource
-                range.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
-                range.Style.VerticalAlignment = ExcelVerticalAlignment.Center
+                'range.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
+                'range.Style.VerticalAlignment = ExcelVerticalAlignment.Center
             End Using
         End If
 
@@ -358,8 +371,8 @@ Public Class Form1
             Using range As ExcelRange = wsSource.Cells(sourceRow, columnAD, sourceRow, columnAE)
                 range.Merge = True
                 range.Value = valueSource
-                range.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
-                range.Style.VerticalAlignment = ExcelVerticalAlignment.Center
+                'range.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
+                'range.Style.VerticalAlignment = ExcelVerticalAlignment.Center
             End Using
         End If
 
@@ -405,5 +418,38 @@ Public Class Form1
             MessageBox.Show("文件保存被取消。", "取消", MessageBoxButtons.OK, MessageBoxIcon.Information)
         End If
     End Sub
+    Function ShouldSkipCell(cell As ExcelRangeBase, targetColumn As String, wsSource As ExcelWorksheet) As Boolean
+        ' 检查是否是需要跳过的公司
+        If cell.Value = "国网内蒙古东部电力有限公司经济技术研究院" Or
+           cell.Value = "国网内蒙古东部电力有限公司内蒙古超特高压分公司" Then
+            ShouldSkipCell = True ' 跳过这些公司
+            Exit Function
+        End If
 
+        ' 检查是否是需要特殊处理的公司
+        If cell.Value = "国网内蒙古东部电力有限公司赤峰供电公司" Or
+           cell.Value = "国网内蒙古东部电力有限公司通辽供电公司" Or
+           cell.Value = "国网内蒙古东部电力有限公司兴安供电公司" Or
+           cell.Value = "国网内蒙古东部电力有限公司呼伦贝尔供电公司" Then
+            ' 如果是C列，且是这些公司，则不跳过
+            If targetColumn = "C" Then ' 比较列名
+                ShouldSkipCell = False ' C列不跳过
+            Else
+                ShouldSkipCell = True ' 非C列跳过
+            End If
+            Exit Function
+        End If
+
+        ' 获取目标列的单元格值
+        Dim cellValue As String
+        Dim columnIndex As Integer = ColumnLetterToNumber(targetColumn)
+        cellValue = wsSource.Cells(cell.Start.Row, columnIndex).Value
+
+        ' 默认返回是否为空或仅包含空格
+        If Len(cellValue) = 0 Then
+            ShouldSkipCell = True ' 目标列为空或者空格也跳过
+        Else
+            ShouldSkipCell = False ' 否则不跳过
+        End If
+    End Function
 End Class
