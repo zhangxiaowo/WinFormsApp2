@@ -45,6 +45,7 @@ Public Class Form1
                 Dim wsTarget As ExcelWorksheet = package2.Workbook.Worksheets("科目汇总表查询.xlsx") ' 获取第二个文件工作表
 
                 ' 调用 ProcessExcelFile 方法处理第一个文件
+                'N601
                 ProcessExcelFile(worksheetN601, wsTarget, "C", checkValue221101) ' 假设要处理第一个工作表并指定目标列为"A
                 ProcessExcelFile(worksheetN601, wsTarget, "E", checkValue221101) ' 
                 ProcessExcelFile(worksheetN601, wsTarget, "F", checkValue221101) '
