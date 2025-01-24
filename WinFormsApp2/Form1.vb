@@ -27,16 +27,60 @@ Public Class Form1
         Try
             Using package1 As New ExcelPackage(New FileInfo(file1)), package2 As New ExcelPackage(New FileInfo(file2))
                 Dim worksheetN601 As ExcelWorksheet = package1.Workbook.Worksheets("N601")
+                Dim worksheetN607_1 As ExcelWorksheet = package1.Workbook.Worksheets("N607-1")
+                Dim worksheetN607_3 As ExcelWorksheet = package1.Workbook.Worksheets("N607-3")
+                Dim worksheetN607_4 As ExcelWorksheet = package1.Workbook.Worksheets("N607-4")
+                Dim checkValue221101 As Long = 221101   '工资
+                Dim checkValue221102 As Long = 221102   '职工福利
+                Dim checkValue221103 As Long = 221103   '工会经费
+                Dim checkValue221104 As Long = 221104   '职工教育经费
+                Dim checkValue221105 As Long = 221105   '辞退福利
+                Dim checkValue221109 As Long = 221109   '住房公积金
+                Dim checkValue221113 As Long = 221113   '劳务派遣费
+                Dim checkValue221114 As Long = 221114   '临时用工薪酬
+                Dim checkValue221115 As Long = 221115   '农电工用工薪酬
+                Dim checkValue221117 As Long = 221117   '特殊工种保险费
+                Dim checkValue221118 As Long = 221118   '社会保险费
                 ' 获取第一个文件工作表
                 Dim wsTarget As ExcelWorksheet = package2.Workbook.Worksheets("科目汇总表查询.xlsx") ' 获取第二个文件工作表
 
                 ' 调用 ProcessExcelFile 方法处理第一个文件
-                ProcessExcelFile(worksheetN601, wsTarget, "C") ' 假设要处理第一个工作表并指定目标列为"A
-                ProcessExcelFile(worksheetN601, wsTarget, "E") ' 
-                ProcessExcelFile(worksheetN601, wsTarget, "F") '
-                ProcessExcelFile(worksheetN601, wsTarget, "K") '
-                ProcessExcelFile(worksheetN601, wsTarget, "V") '
-                ProcessExcelFile(worksheetN601, wsTarget, "AD") '
+                ProcessExcelFile(worksheetN601, wsTarget, "C", checkValue221101) ' 假设要处理第一个工作表并指定目标列为"A
+                ProcessExcelFile(worksheetN601, wsTarget, "E", checkValue221101) ' 
+                ProcessExcelFile(worksheetN601, wsTarget, "F", checkValue221101) '
+                ProcessExcelFile(worksheetN601, wsTarget, "K", checkValue221101) '
+                ProcessExcelFile(worksheetN601, wsTarget, "V", checkValue221101) '
+                ProcessExcelFile(worksheetN601, wsTarget, "AD", checkValue221101) '
+                'N607-1
+                ProcessExcelFile(worksheetN607_1, wsTarget, "C", checkValue221101) ' 
+                ProcessExcelFile(worksheetN607_1, wsTarget, "D", checkValue221118) '
+                ProcessExcelFile(worksheetN607_1, wsTarget, "E", checkValue221104) '
+                ProcessExcelFile(worksheetN607_1, wsTarget, "F", checkValue221103) '
+                ProcessExcelFile(worksheetN607_1, wsTarget, "G", checkValue221109) '
+                ProcessExcelFile(worksheetN607_1, wsTarget, "I", checkValue221102) '
+                ProcessExcelFile(worksheetN607_1, wsTarget, "K", checkValue221105) '
+                ProcessExcelFile(worksheetN607_1, wsTarget, "N", checkValue221117) '
+                ProcessExcelFile(worksheetN607_1, wsTarget, "H", checkValue221101) '
+                'N607-3
+                ProcessExcelFile(worksheetN607_3, wsTarget, "C", checkValue221101) ' 
+                ProcessExcelFile(worksheetN607_3, wsTarget, "D", checkValue221118) '
+                ProcessExcelFile(worksheetN607_3, wsTarget, "E", checkValue221104) '
+                ProcessExcelFile(worksheetN607_3, wsTarget, "F", checkValue221103) '
+                ProcessExcelFile(worksheetN607_3, wsTarget, "G", checkValue221109) '
+                ProcessExcelFile(worksheetN607_3, wsTarget, "I", checkValue221102) '
+                ProcessExcelFile(worksheetN607_3, wsTarget, "J", checkValue221105) '
+                ProcessExcelFile(worksheetN607_3, wsTarget, "M", checkValue221117) '
+                ProcessExcelFile(worksheetN607_3, wsTarget, "H", checkValue221101) '
+                'N607-4
+                ProcessExcelFile(worksheetN607_4, wsTarget, "C", checkValue221101) ' 
+                ProcessExcelFile(worksheetN607_4, wsTarget, "D", checkValue221118) '
+                ProcessExcelFile(worksheetN607_4, wsTarget, "E", checkValue221104) '
+                ProcessExcelFile(worksheetN607_4, wsTarget, "F", checkValue221103) '
+                ProcessExcelFile(worksheetN607_4, wsTarget, "G", checkValue221109) '
+                ProcessExcelFile(worksheetN607_4, wsTarget, "I", checkValue221102) '
+                ProcessExcelFile(worksheetN607_4, wsTarget, "J", checkValue221105) '
+                ProcessExcelFile(worksheetN607_4, wsTarget, "M", checkValue221117) '
+                ProcessExcelFile(worksheetN607_4, wsTarget, "H", checkValue221101) '
                 SaveProcessedFile(package1, file1)
                 ' 调用 ProcessExcelFile 方法处理第二个文件
             End Using
@@ -52,7 +96,7 @@ Public Class Form1
     End Sub
 
     ' 处理Excel文件的公共方法
-    Public Sub ProcessExcelFile(wsSource As ExcelWorksheet, wsTarget As ExcelWorksheet, targetColumn As String)
+    Public Sub ProcessExcelFile(wsSource As ExcelWorksheet, wsTarget As ExcelWorksheet, targetColumn As String, checkValue As Long)
         ' 检查工作表是否存在
         If wsSource Is Nothing OrElse wsTarget Is Nothing Then
             Throw New Exception("源工作表或目标工作表不存在！")
@@ -76,7 +120,6 @@ Public Class Form1
         CleanColumn(wsTarget, "A")
 
         ' 遍历源工作表 A 列
-        Dim checkValue As Integer = 221101 ' 根据需要设置checkValue的值
         For Each currentCell In rangeSource
             ' 获取目标列名称（假设为H或M，根据实际情况调整）
             ' 如果目标列为空，则跳过当前单元格
@@ -104,10 +147,10 @@ Public Class Form1
             ' 根据工作表名称和目标列应用不同的匹配逻辑
             If IsSpecialSheet(wsSource.Name, targetColumn) Then
                 totalCalculatedValue = ProcessSpecialSheets(wsSource, wsTarget, currentCell.Start.Row, targetColumn, possibleMatches)
-                matchFound = totalCalculatedValue > 0
+                matchFound = True
             Else
                 totalCalculatedValue = ProcessGeneralSheets(wsSource, wsTarget, currentCell.Start.Row, targetColumn, possibleMatches, checkValue)
-                matchFound = totalCalculatedValue > 0
+                matchFound = True
             End If
 
             ' 如果工作表名称是N601，处理V和AD列数据
@@ -204,6 +247,7 @@ Public Class Form1
         Dim totalCalculatedValue As Double = 0
         Dim columnA As Integer = CInt(ColumnLetterToNumber("A"))
         Dim columnB As Integer = CInt(ColumnLetterToNumber("B"))
+        Dim columnC As Integer = CInt(ColumnLetterToNumber("C"))
         Dim columnE As Integer = CInt(ColumnLetterToNumber("E"))
         Dim columnF As Integer = CInt(ColumnLetterToNumber("F"))
         Dim columnI As Integer = CInt(ColumnLetterToNumber("I"))
@@ -212,14 +256,14 @@ Public Class Form1
         For Each match In possibleMatches
             ' 遍历目标工作表的 A 列，查找所有匹配的项
             For i As Integer = 1 To wsTarget.Dimension.End.Row
-                Dim targetCellValue As String = If(wsTarget.Cells(i, ColumnLetterToNumber("A")).Value IsNot Nothing, Trim(wsTarget.Cells(i, ColumnLetterToNumber("A")).Value.ToString()), "")
-                Dim targetCValue As String = If(wsTarget.Cells(i, ColumnLetterToNumber("C")).Value IsNot Nothing, wsTarget.Cells(i, ColumnLetterToNumber("C")).Value.ToString(), "")
+                Dim targetCellValue As String = If(wsTarget.Cells(i, columnA).Value IsNot Nothing, Trim(wsTarget.Cells(i, columnA).Value.ToString()), "")
+                Dim targetCValue As String = If(wsTarget.Cells(i, columnC).Value IsNot Nothing, wsTarget.Cells(i, columnC).Value.ToString(), "")
 
                 ' 如果 C 列包含 "劳动保护费" 并且 A 列匹配
                 If targetCValue.Contains("劳动保护费") AndAlso targetCellValue = match Then
-                    Dim eVal As Double = If(IsNumeric(wsTarget.Cells(i, "E").Value), CDbl(wsTarget.Cells(i, "E").Value), 0)
-                    Dim fVal As Double = If(IsNumeric(wsTarget.Cells(i, "F").Value), CDbl(wsTarget.Cells(i, "F").Value), 0)
-                    Dim iVal As Double = If(IsNumeric(wsTarget.Cells(i, "I").Value), CDbl(wsTarget.Cells(i, "I").Value), 0)
+                    Dim eVal As Double = If(IsNumeric(wsTarget.Cells(i, columnE).Value), CDbl(wsTarget.Cells(i, columnE).Value), 0)
+                    Dim fVal As Double = If(IsNumeric(wsTarget.Cells(i, columnF).Value), CDbl(wsTarget.Cells(i, columnE).Value), 0)
+                    Dim iVal As Double = If(IsNumeric(wsTarget.Cells(i, columnI).Value), CDbl(wsTarget.Cells(i, columnI).Value), 0)
 
                     totalCalculatedValue += (eVal + fVal - iVal)
                 End If
