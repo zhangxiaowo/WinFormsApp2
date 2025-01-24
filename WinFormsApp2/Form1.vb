@@ -118,10 +118,9 @@ Public Class Form1
             Dim valueSource As Double = 0
             If Double.TryParse(wsSource.Cells(currentCell.Start.Row, columnIndex).Text, valueSource) Then
                 If matchFound Then
-                    If Math.Abs(Convert.ToDecimal(valueSource) - Convert.ToDecimal(totalCalculatedValue)) < 3 Then
+                    If Math.Abs(valueSource - totalCalculatedValue) < 3 Then
                         SetCellColor(wsSource, currentCell.Start.Row, columnIndex, Color.FromArgb(0, 190, 140)) ' 一致标绿
                     Else
-                        SetCellColor(wsSource, currentCell.Start.Row, columnIndex, Color.Red) ' 不一致标红
                         SetCellColor(wsSource, currentCell.Start.Row, columnIndex, Color.Red) ' 不一致标红
                         wsSource.Cells(currentCell.Start.Row, columnIndex).AddComment("科目表中的数据为 " & totalCalculatedValue)
                     End If
@@ -353,13 +352,13 @@ Public Class Form1
             valueColumn2 = If(IsNumeric(wsSource.Cells(sourceRow, columnW).Value), CDbl(wsSource.Cells(sourceRow, columnW).Value), 0)
             valueSource = valueColumn1 + valueColumn2
 
-            ' 合并 V 列和 W 列的单元格，并居中显示
-            Using range As ExcelRange = wsSource.Cells(sourceRow, columnV, sourceRow, columnW)
-                range.Merge = True
-                range.Value = valueSource
-                'range.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
-                'range.Style.VerticalAlignment = ExcelVerticalAlignment.Center
-            End Using
+            '' 合并 V 列和 W 列的单元格，并居中显示
+            'Using range As ExcelRange = wsSource.Cells(sourceRow, columnV, sourceRow, columnW)
+            '    range.Merge = True
+            '    range.Value = valueSource
+            '    'range.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
+            '    'range.Style.VerticalAlignment = ExcelVerticalAlignment.Center
+            'End Using
         End If
 
         If targetColumn = "AD" Then
@@ -368,12 +367,12 @@ Public Class Form1
             valueSource = valueColumn1 + valueColumn2
 
             ' 合并 AD 列和 AE 列的单元格，并居中显示
-            Using range As ExcelRange = wsSource.Cells(sourceRow, columnAD, sourceRow, columnAE)
-                range.Merge = True
-                range.Value = valueSource
-                'range.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
-                'range.Style.VerticalAlignment = ExcelVerticalAlignment.Center
-            End Using
+            'Using range As ExcelRange = wsSource.Cells(sourceRow, columnAD, sourceRow, columnAE)
+            '    range.Merge = True
+            '    range.Value = valueSource
+            '    'range.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
+            '    'range.Style.VerticalAlignment = ExcelVerticalAlignment.Center
+            'End Using
         End If
 
         Return valueSource
