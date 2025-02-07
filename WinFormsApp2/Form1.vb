@@ -27,6 +27,8 @@ Public Class Form1
         Try
             Using package1 As New ExcelPackage(New FileInfo(file1)), package2 As New ExcelPackage(New FileInfo(file2))
                 Dim worksheetN601 As ExcelWorksheet = package1.Workbook.Worksheets("N601")
+                Dim worksheetN602 As ExcelWorksheet = package1.Workbook.Worksheets("N602")
+                Dim worksheetN606 As ExcelWorksheet = package1.Workbook.Worksheets("N606")
                 Dim worksheetN607_1 As ExcelWorksheet = package1.Workbook.Worksheets("N607-1")
                 Dim worksheetN607_3 As ExcelWorksheet = package1.Workbook.Worksheets("N607-3")
                 Dim worksheetN607_4 As ExcelWorksheet = package1.Workbook.Worksheets("N607-4")
@@ -82,6 +84,13 @@ Public Class Form1
                 ProcessExcelFile(worksheetN607_4, wsTarget, "J", checkValue221105) '
                 ProcessExcelFile(worksheetN607_4, wsTarget, "M", checkValue221117) '
                 ProcessExcelFile(worksheetN607_4, wsTarget, "H", checkValue221101) '
+                ProcessN602(worksheetN602, worksheetN601)
+                ProcessN606CK(worksheetN606, worksheetN607_1， "C")
+                ProcessN606CK(worksheetN606, worksheetN607_1, "K")
+                ProcessN606EF(worksheetN607_3, worksheetN606, wsTarget, "E")
+                ProcessN606EF(worksheetN607_4, worksheetN606, wsTarget, "F")
+                ProcessN606EF(worksheetN607_3, worksheetN606, wsTarget, "V")
+                ProcessN606EF(worksheetN607_4, worksheetN606, wsTarget, "AD")
                 SaveProcessedFile(package1, file1)
                 ' 调用 ProcessExcelFile 方法处理第二个文件
             End Using
@@ -134,7 +143,7 @@ Public Class Form1
             If ShouldSkipCell(currentCell, "A", wsSource) Then
                 Continue For
             End If
-
+            Dim valueSource As Double = 0
             ' 清理当前源单元格 A 列的值，去除空格并去掉括号
             Dim cleanedValue As String = RemoveBrackets(Trim(currentCell.Text))
 
@@ -146,26 +155,37 @@ Public Class Form1
             Dim matchFound As Boolean = False ' 用来标记是否找到匹配项
 
             ' 根据工作表名称和目标列应用不同的匹配逻辑
-            If IsSpecialSheet(wsSource.Name, targetColumn) Then
+            Dim specialSheetResult As Integer = IsSpecialSheet(wsSource.Name, targetColumn)
+            valueSource = GetCellValueOrDefault(wsSource.Cells(currentCell.Start.Row, ColumnLetterToNumber(targetColumn)))
+            If specialSheetResult = 1 Then
+                ' 返回 1 时进入当前方法
+
                 totalCalculatedValue = ProcessSpecialSheets(wsSource, wsTarget, currentCell.Start.Row, targetColumn, possibleMatches)
                 matchFound = True
+            ElseIf specialSheetResult = 2 Then
+                ' 返回 2 时进入另一个方法
+                totalCalculatedValue = ProcessAnotherSpecialSheet(wsSource, wsTarget, currentCell.Start.Row, targetColumn, possibleMatches)
+                matchFound = True
             Else
+                ' 否则按照现有逻辑执行
                 totalCalculatedValue = ProcessGeneralSheets(wsSource, wsTarget, currentCell.Start.Row, targetColumn, possibleMatches, checkValue)
                 matchFound = True
             End If
 
-            ' 如果工作表名称是N601，处理V和AD列数据
-            If wsSource.Name = "N601" Then
-                totalCalculatedValue = MergeAndCenterCells(wsSource, currentCell.Start.Row, targetColumn, totalCalculatedValue)
-            End If
+
             ' 根据累加的结果设置颜色
-            Dim valueSource As Double = 0
+
             If Double.TryParse(wsSource.Cells(currentCell.Start.Row, columnIndex).Text, valueSource) Then
+                ' 如果工作表名称是N601，处理V和AD列数据
+                If wsSource.Name = "N601" Then
+                    valueSource = MergeAndCenterCells(wsSource, currentCell.Start.Row, targetColumn, valueSource)
+                End If
                 If matchFound Then
                     If Math.Abs(valueSource - totalCalculatedValue) < 3 Then
                         SetCellColor(wsSource, currentCell.Start.Row, columnIndex, Color.FromArgb(0, 190, 140)) ' 一致标绿
                     Else
                         SetCellColor(wsSource, currentCell.Start.Row, columnIndex, Color.Red) ' 不一致标红
+
                         wsSource.Cells(currentCell.Start.Row, columnIndex).AddComment("科目表中的数据为 " & totalCalculatedValue)
                     End If
                 Else
@@ -194,12 +214,12 @@ Public Class Form1
     End Function
 
     ' 判断是否为特殊工作表
-    Public Function IsSpecialSheet(sheetName As String, targetColumn As String) As Boolean
+    Public Function IsSpecialSheet(sheetName As String, targetColumn As String) As Integer
         If (sheetName = "N607-3" OrElse sheetName = "N607-1" OrElse sheetName = "N607-4") AndAlso targetColumn = "H" Then
-            Return True
+            Return 1
         End If
         If (sheetName = "N607-3" OrElse sheetName = "N607-4") AndAlso targetColumn = "M" Then
-            Return True
+            Return 2
         End If
         Return False
     End Function
@@ -211,6 +231,8 @@ Public Class Form1
                 Return {"国网内蒙古东部电力有限公司物资分公司", "国网内蒙古东部电力招标有限公司"}
             Case "国网内蒙古东部电力有限公司数字化事业部"
                 Return {"国网内蒙古东部电力有限公司信息通信分公司"}
+            Case "国网内蒙古东部电力有限公司本部"
+                Return {"国网内蒙古东部电力有限公司机关财务处"}
             Case "国网内蒙古东部电力有限公司经济技术研究院"
                 Return {"国网内蒙古东部电力有限公司经济技术研究院", "国网内蒙古东部电力设计有限公司"}
             Case Else
@@ -256,14 +278,14 @@ Public Class Form1
         ' 遍历可能的匹配项
         For Each match In possibleMatches
             ' 遍历目标工作表的 A 列，查找所有匹配的项
-            For i As Integer = 1 To wsTarget.Dimension.End.Row
+            For i As Integer = 4 To wsTarget.Dimension.End.Row
                 Dim targetCellValue As String = If(wsTarget.Cells(i, columnA).Value IsNot Nothing, Trim(wsTarget.Cells(i, columnA).Value.ToString()), "")
                 Dim targetCValue As String = If(wsTarget.Cells(i, columnC).Value IsNot Nothing, wsTarget.Cells(i, columnC).Value.ToString(), "")
 
                 ' 如果 C 列包含 "劳动保护费" 并且 A 列匹配
                 If targetCValue.Contains("劳动保护费") AndAlso targetCellValue = match Then
                     Dim eVal As Double = If(IsNumeric(wsTarget.Cells(i, columnE).Value), CDbl(wsTarget.Cells(i, columnE).Value), 0)
-                    Dim fVal As Double = If(IsNumeric(wsTarget.Cells(i, columnF).Value), CDbl(wsTarget.Cells(i, columnE).Value), 0)
+                    Dim fVal As Double = If(IsNumeric(wsTarget.Cells(i, columnF).Value), CDbl(wsTarget.Cells(i, columnF).Value), 0)
                     Dim iVal As Double = If(IsNumeric(wsTarget.Cells(i, columnI).Value), CDbl(wsTarget.Cells(i, columnI).Value), 0)
 
                     totalCalculatedValue += (eVal + fVal - iVal)
@@ -273,7 +295,35 @@ Public Class Form1
 
         Return totalCalculatedValue
     End Function
+    Public Function ProcessAnotherSpecialSheet(wsSource As ExcelWorksheet, wsTarget As ExcelWorksheet, sourceRow As Integer, targetColumn As String, possibleMatches As String()) As Double
+        Dim totalCalculatedValue As Double = 0
+        Dim columnA As Integer = CInt(ColumnLetterToNumber("A"))
+        Dim columnB As Integer = CInt(ColumnLetterToNumber("B"))
+        Dim columnE As Integer = CInt(ColumnLetterToNumber("E"))
+        Dim columnF As Integer = CInt(ColumnLetterToNumber("F"))
+        Dim columnI As Integer = CInt(ColumnLetterToNumber("I"))
 
+        ' 遍历可能的匹配项
+        For Each match In possibleMatches
+            ' 遍历目标工作表的 A 列，查找所有匹配的项
+            For i As Integer = 4 To wsTarget.Dimension.End.Row
+                Dim targetCellValue As String = If(wsTarget.Cells(i, columnA).Value IsNot Nothing, Trim(wsTarget.Cells(i, columnA).Value.ToString()), "")
+                Dim targetBValue As String = If(wsTarget.Cells(i, columnB).Value IsNot Nothing, wsTarget.Cells(i, columnB).Value.ToString(), "")
+
+                If wsTarget.Cells(i, columnB).Value = 221113 Or
+                           wsTarget.Cells(i, columnB).Value = 221114 Or
+                           wsTarget.Cells(i, columnB).Value = 221117 Then
+                    Dim eVal As Double = If(IsNumeric(wsTarget.Cells(i, columnE).Value), CDbl(wsTarget.Cells(i, columnE).Value), 0)
+                    Dim fVal As Double = If(IsNumeric(wsTarget.Cells(i, columnF).Value), CDbl(wsTarget.Cells(i, columnF).Value), 0)
+                    Dim iVal As Double = If(IsNumeric(wsTarget.Cells(i, columnI).Value), CDbl(wsTarget.Cells(i, columnI).Value), 0)
+
+                    totalCalculatedValue += (eVal + fVal - iVal)
+                End If
+            Next
+        Next
+
+        Return totalCalculatedValue
+    End Function
     ' 将列名转换为列号
     Function ColumnLetterToNumber(column As String) As Integer
         ' 验证输入是否合法
@@ -465,7 +515,8 @@ Public Class Form1
     Function ShouldSkipCell(cell As ExcelRangeBase, targetColumn As String, wsSource As ExcelWorksheet) As Boolean
         ' 检查是否是需要跳过的公司
         If cell.Value = "国网内蒙古东部电力有限公司经济技术研究院" Or
-           cell.Value = "国网内蒙古东部电力有限公司内蒙古超特高压分公司" Then
+           cell.Value = "国网内蒙古东部电力有限公司内蒙古超特高压分公司" Or
+           cell.Value = "内蒙古新正产业管理有限公司" Then
             ShouldSkipCell = True ' 跳过这些公司
             Exit Function
         End If
@@ -494,6 +545,259 @@ Public Class Form1
             ShouldSkipCell = True ' 目标列为空或者空格也跳过
         Else
             ShouldSkipCell = False ' 否则不跳过
+        End If
+    End Function
+    ' 处理N602sheet anhuili
+    Sub ProcessN602(wsSource As ExcelWorksheet, wsTarget As ExcelWorksheet)
+        Dim cleanedValueA As String
+        Dim returnedArray() As String
+        Dim result As String ' 声明结果变量
+        Dim SecondValue As String ' 声明第二个值变量
+        Dim splitArray() As String ' 声明分割数组
+        ' 获取使用区域
+        Dim sourceEndRow As Integer = Math.Max(11, If(wsSource.Dimension?.End.Row, 11)) ' 确保 >= 11
+        Dim targetEndRow As Integer = Math.Max(11, If(wsTarget.Dimension?.End.Row, 11)) ' 确保 >= 11
+        Dim rangeSource As ExcelRange = wsSource.Cells($"C11:C{sourceEndRow}")
+        Dim rangeTarget As ExcelRange = wsTarget.Cells($"C11:C{targetEndRow}")
+
+        ' 调用函数并将返回的数组存储在Variant变量中
+        ' 假设 CreateStringArrayForN602 是一个已经定义并返回数组的函数
+        returnedArray = CreateStringArrayForN602()
+
+        ' 遍历 rngN602 中的每个单元格
+        For Each currentCell In rangeSource
+            ' 为每个cell设置对应的AD单元格
+            Dim cellC As ExcelRange = wsSource.Cells(currentCell.Start.Row, ColumnLetterToNumber("C"))
+            Dim cellAD As ExcelRange = wsSource.Cells(currentCell.Start.Row, ColumnLetterToNumber("AD"))
+            Dim cellAE As ExcelRange = wsSource.Cells(currentCell.Start.Row, ColumnLetterToNumber("AE"))
+            Dim cellA As ExcelRange = wsSource.Cells(currentCell.Start.Row, ColumnLetterToNumber("A"))
+            Dim cellValueTemp As String = cellA.Text
+
+            '2.处理602表2栏和601表2栏一致
+            For j As Integer = 1 To wsTarget.Dimension.End.Row
+                Dim targetCellValue As String = wsTarget.Cells(j, ColumnLetterToNumber("A")).Value
+                If cellValueTemp = targetCellValue Then
+                    Dim targetBValue As Double = GetCellValueOrDefault(wsTarget.Cells(j, ColumnLetterToNumber("C")))
+                    If cellC.Value = targetBValue.ToString And cellC.Value = cellAD.Value Then
+                        ' 如果相等，两个单元格都标绿
+                        SetCellColor(wsSource, currentCell.Start.Row, ColumnLetterToNumber("C"), Color.Green) ' 一致标绿
+                    Else
+                        ' 如果不相等，两个单元格都标红
+                        SetCellColor(wsSource, currentCell.Start.Row, ColumnLetterToNumber("C"), Color.Red) ' 不一致标红
+                        wsSource.Cells(currentCell.Start.Row, ColumnLetterToNumber("C")).AddComment("N601 C列核对的数据为" & targetBValue & vbCrLf &
+                          "N602 AD列核对的数据为" & cellAD.Value)
+                    End If
+                End If
+            Next j
+
+            ' 处理AD列如果单元格包含'['符号，则跳过本次循环，地市公司本部和旗县公司校验就行
+            If Not cellValueTemp.Contains("【") Then
+                Continue For
+            End If
+            cleanedValueA = RemoveBrackets(cellA.Text)
+            ' 遍历 returnedArray 寻找匹配项
+            For i = LBound(returnedArray) To UBound(returnedArray)
+                If InStr(returnedArray(i), cleanedValueA) > 0 Then
+                    result = returnedArray(i)
+                    splitArray = Split(result, "=")
+                    If UBound(splitArray) >= 1 Then
+                        SecondValue = splitArray(1)
+                        If cellAE.Value = SecondValue Then
+                            SetCellColor(wsSource, currentCell.Start.Row, ColumnLetterToNumber("AE"), Color.Green) ' 一致标绿
+                        Else
+                            SetCellColor(wsSource, currentCell.Start.Row, ColumnLetterToNumber("AE"), Color.Red) ' 不一致标红
+                            wsSource.Cells(currentCell.Start.Row, ColumnLetterToNumber("AE")).AddComment("核对的数据为" & SecondValue)
+                        End If
+                    End If
+                    Exit For ' 如果找到匹配项，则退出循环
+                End If
+            Next i
+        Next currentCell
+    End Sub
+
+    Public Sub ProcessN606CK(wsSource As ExcelWorksheet, wsTarget As ExcelWorksheet, targetColumn As String)
+        Dim rangeSource As ExcelRange
+        Dim rangeTarget As ExcelRange
+        Dim valueSource As Double
+
+        ' 获取源工作表的 A 列范围（从第11行开始到最后一行）606
+        ' 获取使用区域
+        Dim sourceEndRow As Integer = Math.Max(11, If(wsSource.Dimension?.End.Row, 11)) ' 确保 >= 11
+        rangeSource = wsSource.Cells($"A11:A{sourceEndRow}")
+
+        ' 获取目标工作表的 A 列范围（从第4行开始到最后一行）N607-1
+        Dim targetEndRow As Integer = Math.Max(11, If(wsTarget.Dimension?.End.Row, 11)) ' 确保 >= 11
+        rangeTarget = wsTarget.Cells($"A11:A{targetEndRow}")
+
+        ' 遍历源工作表 A 列
+        For Each currentCell In rangeSource
+            ' 清理当前源单元格 A 列的值，去除空格并去掉括号
+            'cleanedValue = RemoveBrackets(currentCell.Value)
+            ' 查找匹配值 
+
+            ' 遍历目标工作表N607-1的 A 列，查找所有匹配的项
+            For i As Integer = 11 To wsTarget.Dimension.End.Row
+                Dim targetCellValue As String = wsTarget.Cells(i, ColumnLetterToNumber("A")).Value
+                If currentCell.Value = targetCellValue Then
+                    Dim targetBValue As Double = GetCellValueOrDefault(wsTarget.Cells(i, ColumnLetterToNumber("B")))
+                    valueSource = GetCellValueOrDefault(wsSource.Cells(currentCell.Start.Row, ColumnLetterToNumber(targetColumn)))
+                    If valueSource = targetBValue Then
+                        ' 如果相等，两个单元格都标绿
+                        SetCellColor(wsSource, currentCell.Start.Row, ColumnLetterToNumber(targetColumn), Color.Green) ' 一致标绿
+                    Else
+                        ' 如果不相等，两个单元格都标红
+                        SetCellColor(wsSource, currentCell.Start.Row, ColumnLetterToNumber(targetColumn), Color.Red) ' 不一致标红
+                        wsSource.Cells(currentCell.Start.Row, ColumnLetterToNumber(targetColumn)).AddComment("N607-1核对的数据为" & targetBValue)
+                    End If
+                End If
+            Next i
+        Next currentCell
+    End Sub
+    Sub ProcessN606EF(wsSource As ExcelWorksheet, wsTarget As ExcelWorksheet, wsTargetKeMu As ExcelWorksheet, targetColumn As String)
+        Dim cleanedValue As String
+        Dim valueSource As Double
+        Dim calculatedValue221113 As Double
+        Dim calculatedValue221114 As Double
+        Dim matchRowSum As Double
+        Dim Value606 As Double
+
+        ' 获取源和目标范围 ' 获取使用区域
+        Dim sourceEndRow As Integer = Math.Max(11, If(wsSource.Dimension?.End.Row, 11)) ' 确保 >= 11
+        Dim rangeSource As ExcelRange = wsSource.Cells($"A11:A{sourceEndRow}")  '607-3 607-4
+
+        ' 遍历源工作表，遍历607-3或 607-4表，查出对应的1栏的值，去科目表查出对应的221113，221114
+        For Each cell In rangeSource
+            matchRowSum = 0 '初始化
+            Value606 = 0
+            '607-3 A 列的值
+            cleanedValue = cell.Text
+            '1栏的值
+            valueSource = GetCellValueOrDefault(wsSource.Cells(cell.Start.Row, ColumnLetterToNumber("B")))
+            For k As Integer = 4 To wsTargetKeMu.Dimension.End.Row
+                Dim targetCellValue As String = wsTargetKeMu.Cells(k, ColumnLetterToNumber("A")).Value
+                If cleanedValue.Contains(targetCellValue) Then '公司名
+                    If wsTargetKeMu.Cells(k, ColumnLetterToNumber("B")).Value = "221113" Then
+                        calculatedValue221113 = GetCellValueOrDefault(wsTargetKeMu.Cells(k, ColumnLetterToNumber("E"))) + GetCellValueOrDefault(wsTargetKeMu.Cells(k, ColumnLetterToNumber("F"))) - GetCellValueOrDefault(wsTargetKeMu.Cells(k, ColumnLetterToNumber("I")))
+                        matchRowSum = matchRowSum + calculatedValue221113
+                    End If
+                    If wsTargetKeMu.Cells(k, ColumnLetterToNumber("B")).Value = "221114" Then
+                        calculatedValue221114 = GetCellValueOrDefault(wsTargetKeMu.Cells(k, ColumnLetterToNumber("E"))) + GetCellValueOrDefault(wsTargetKeMu.Cells(k, ColumnLetterToNumber("F"))) - GetCellValueOrDefault(wsTargetKeMu.Cells(k, ColumnLetterToNumber("I")))
+                        matchRowSum = matchRowSum + calculatedValue221114
+                    End If
+                End If
+            Next k
+            '606栏的值
+            For m = 11 To wsTarget.Dimension.End.Row
+                Dim targetCellValue As String = wsTarget.Cells(m, ColumnLetterToNumber("A")).Value
+                If cleanedValue = targetCellValue Then '公司名
+                    Value606 = GetCellValueOrDefault(wsTarget.Cells(m, ColumnLetterToNumber(targetColumn)))
+                    ' 处理V，W  AD，AE列
+                    If targetColumn = "V" Then
+                        Value606 = Value606 + GetCellValueOrDefault(wsTarget.Cells(m, ColumnLetterToNumber("W")))
+                    End If
+                    ' 处理V，W  AD，AE列
+                    If targetColumn = "AD" Then
+                        Value606 = Value606 + GetCellValueOrDefault(wsTarget.Cells(m, ColumnLetterToNumber("AE")))
+                    End If
+                    If Value606 <> 0 Then
+                        If Math.Abs(Value606 - valueSource - matchRowSum) < 3 Then
+                            SetCellColor(wsTarget, m, ColumnLetterToNumber(targetColumn), Color.Green) ' 一致标绿
+                            If targetColumn = "AD" Then
+                                SetCellColor(wsTarget, m, ColumnLetterToNumber("AE"), Color.Green) ' 一致标绿
+                            End If
+                            If targetColumn = "V" Then
+                                SetCellColor(wsTarget, m, ColumnLetterToNumber("W"), Color.Green) ' 一致标绿
+                            End If
+                        Else
+                            SetCellColor(wsTarget, m, ColumnLetterToNumber(targetColumn), Color.Red) ' 不一致标红
+                            wsTarget.Cells(m, ColumnLetterToNumber(targetColumn)).AddComment("核对的数据为" & Math.Round((valueSource - matchRowSum), 2))
+                            If targetColumn = "AD" Then
+                                SetCellColor(wsTarget, m, ColumnLetterToNumber("AE"), Color.Red) ' 不一致标红
+                            End If
+                            If targetColumn = "V" Then
+                                SetCellColor(wsTarget, m, ColumnLetterToNumber("W"), Color.Red) ' 不一致标红
+                            End If
+                        End If
+                    End If
+                End If
+            Next m
+        Next cell
+    End Sub
+    Public Function CreateStringArrayForN602() As String()
+        ' 声明一个字符串数组，大小为56
+        Dim stringArray(55) As String
+        stringArray(0) = "国网内蒙古东部电力有限公司红山区供电分公司=2"
+        stringArray(1) = "国网内蒙古东部电力有限公司本部=5"
+        stringArray(2) = "国网内蒙古东部电力有限公司数字化事业部=3"
+        stringArray(3) = "国网内蒙古东部电力有限公司物资事业部=3"
+        stringArray(4) = "国网内蒙古东部电力有限公司经济技术研究院=3"
+        stringArray(5) = "国网内蒙古东部电力有限公司内蒙古超特高压分公司=3"
+        stringArray(6) = "国网内蒙古东部电力有限公司电力科学研究院=3"
+        stringArray(7) = "国网内蒙古东部电力有限公司综合服务分公司=3"
+        stringArray(8) = "国网内蒙古东部电力有限公司建设分公司=3"
+        stringArray(9) = "国网内蒙古东部电力有限公司供电服务监管与支持中心=3"
+        stringArray(10) = "国网内蒙古东部电力有限公司呼伦贝尔供电公司=3"
+        stringArray(11) = "国网内蒙古东部电力有限公司呼伦贝尔供电公司本部=3"
+        stringArray(12) = "国网内蒙古东部电力有限公司满洲里市供电分公司=2"
+        stringArray(13) = "国网内蒙古东部电力有限公司根河市供电分公司=2"
+        stringArray(14) = "国网内蒙古东部电力有限公司扎兰屯市供电分公司=2"
+        stringArray(15) = "国网内蒙古东部电力有限公司牙克石市供电分公司=2"
+        stringArray(16) = "国网内蒙古东部电力有限公司阿荣旗供电分公司=2"
+        stringArray(17) = "国网内蒙古东部电力有限公司莫力达瓦达斡尔族自治旗供电分公司=2"
+        stringArray(18) = "国网内蒙古东部电力有限公司鄂伦春自治旗供电分公司=2"
+        stringArray(19) = "国网内蒙古东部电力有限公司新巴尔虎左旗供电分公司=2"
+        stringArray(20) = "国网内蒙古东部电力有限公司新巴尔虎右旗供电分公司=2"
+        stringArray(21) = "国网内蒙古东部电力有限公司陈巴尔虎旗供电分公司=2"
+        stringArray(22) = "国网内蒙古东部电力有限公司额尔古纳市供电分公司=2"
+        stringArray(23) = "国网内蒙古东部电力有限公司鄂温克族自治旗供电分公司=2"
+        stringArray(24) = "国网内蒙古东部电力有限公司兴安供电公司=3"
+        stringArray(25) = "国网内蒙古东部电力有限公司兴安供电公司本部=3"
+        stringArray(26) = "国网内蒙古东部电力有限公司阿尔山市供电分公司=2"
+        stringArray(27) = "国网内蒙古东部电力有限公司科右前旗供电分公司=2"
+        stringArray(28) = "国网内蒙古东部电力有限公司突泉县供电分公司=2"
+        stringArray(29) = "国网内蒙古东部电力有限公司科右中旗供电分公司=2"
+        stringArray(30) = "国网内蒙古东部电力有限公司扎赉特旗供电分公司=2"
+        stringArray(31) = "国网内蒙古东部电力有限公司乌兰浩特市供电分公司=2"
+        stringArray(32) = "国网内蒙古东部电力有限公司通辽供电公司=3"
+        stringArray(33) = "国网内蒙古东部电力有限公司通辽供电公司本部=3"
+        stringArray(34) = "国网内蒙古东部电力有限公司库伦旗供电分公司=2"
+        stringArray(35) = "国网内蒙古东部电力有限公司奈曼旗供电分公司=2"
+        stringArray(36) = "国网内蒙古东部电力有限公司开鲁县供电分公司=2"
+        stringArray(37) = "国网内蒙古东部电力有限公司科左后旗供电分公司=2"
+        stringArray(38) = "国网内蒙古东部电力有限公司扎鲁特旗供电分公司=2"
+        stringArray(39) = "国网内蒙古东部电力有限公司科左中旗供电分公司=2"
+        stringArray(40) = "国网内蒙古东部电力有限公司科尔沁区供电分公司=2"
+        stringArray(41) = "国网内蒙古东部电力有限公司新城区供电分公司=2"
+        stringArray(42) = "国网内蒙古东部电力有限公司霍林郭勒市供电分公司=2"
+        stringArray(43) = "国网内蒙古东部电力有限公司赤峰供电公司=2"
+        stringArray(44) = "国网内蒙古东部电力有限公司元宝山区供电分公司=2"
+        stringArray(45) = "国网内蒙古东部电力有限公司赤峰供电公司本部=3"
+        stringArray(46) = "国网内蒙古东部电力有限公司阿鲁科尔沁旗供电分公司=2"
+        stringArray(47) = "国网内蒙古东部电力有限公司巴林左旗供电分公司=2"
+        stringArray(48) = "国网内蒙古东部电力有限公司巴林右旗供电分公司=2"
+        stringArray(49) = "国网内蒙古东部电力有限公司林西县供电分公司=2"
+        stringArray(50) = "国网内蒙古东部电力有限公司克什克腾旗供电分公司=2"
+        stringArray(51) = "国网内蒙古东部电力有限公司翁牛特旗供电分公司=2"
+        stringArray(52) = "国网内蒙古东部电力有限公司敖汉旗供电分公司=2"
+        stringArray(53) = "国网内蒙古东部电力有限公司宁城县供电分公司=2"
+        stringArray(54) = "国网内蒙古东部电力有限公司喀喇沁旗供电分公司=2"
+        stringArray(55) = "国网内蒙古东部电力有限公司松山区供电分公司=2"
+        Return stringArray
+    End Function
+    Public Function GetCellValueOrDefault(cell As ExcelRange) As Double
+        ' 检查单元格值是否为 Nothing 或者空
+        If cell.Value Is Nothing OrElse String.IsNullOrEmpty(cell.Value.ToString()) Then
+            Return 0
+        End If
+
+        ' 尝试将单元格值转换为 Double 类型
+        Dim value As Double
+        If Double.TryParse(cell.Value.ToString(), value) Then
+            ' 如果成功转换，则返回转换后的值
+            Return value
+        Else
+            ' 如果不能转换为 Double，则返回 0
+            Return 0
         End If
     End Function
 End Class
